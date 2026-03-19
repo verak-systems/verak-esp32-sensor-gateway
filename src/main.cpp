@@ -24,7 +24,7 @@ void setup() {
   pinMode(THERMISTER_PIN, INPUT);
 
   while (status != WL_CONNECTED){
-    status = WiFi.begin(SSID, PASSWORD);
+    status = WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     Serial.print("No Wifi Connection");
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
