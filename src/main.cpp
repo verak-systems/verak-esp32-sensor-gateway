@@ -37,6 +37,15 @@ void setup() {
 }
 
 void loop() {
+  if (!WiFi.isConnected()){
+    Serial.print("Wifi connection Dropped\nRetrying connection");
+    while(WiFi.status() != WL_CONNECTED){
+      Serial.print(".");
+      WiFi.reconnect();
+      vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+  }
+
   sensors.requestTemperatures();
   float tempC = sensors.getTempCByIndex(0);
 
