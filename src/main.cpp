@@ -4,7 +4,7 @@
 #include <FreeRTOSConfig.h>
 #include <Config.h>
 #include <WiFi.h>
-#include <PubSubClient.h>
+#include <MqttClient.h>
 
 
 #define TEMP_PIN 13
@@ -15,6 +15,7 @@ DallasTemperature sensors(&oneWire);
 
 int status = WL_IDLE_STATUS;
 WiFiClient client;
+MqttClient mqttClient(client);
 
 void setup() {
   Serial.begin(115200);
@@ -22,6 +23,7 @@ void setup() {
   sensors.setResolution(12);
   Serial.println("DS18B20 ready");
   pinMode(THERMISTOR_PIN, INPUT);
+
 
   while (WiFi.status() != WL_CONNECTED){
 
@@ -34,17 +36,33 @@ void setup() {
   }
 
   Serial.print("Wifi connected!\n");
+  Serial.print("Connecting to MQTT Broker");
+
+  while (!mqttClient.connect(BROKER, MQTT_PORT)){
+    Serial.print(".");
+
+  }
+
+  Serial.print("Connected to MQTT Broker");
 }
 
 void loop() {
-  if (!WiFi.isConnected()){
-    Serial.print("Wifi connection Dropped\nRetrying connection");
+  if (!WiFi.isConnected() || !mqttClient.connected()){
+    Serial.print("Wifi/MQTT connection Dropped\nRetrying connection");
     while(WiFi.status() != WL_CONNECTED){
       Serial.print(".");
       WiFi.reconnect();
       vTaskDelay(pdMS_TO_TICKS(1000));
     }
+
+    while(!mqttClient.connect(BROKER, MQTT_PORT)){
+      Serial.print(".");
+    }
+
+    Serial.print("RECONNECTED");
   }
+
+  mqttClient.poll();
 
   sensors.requestTemperatures();
   float tempC = sensors.getTempCByIndex(0);
