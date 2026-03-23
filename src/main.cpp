@@ -79,5 +79,10 @@ void loop() {
     Serial.println(" °C");
   }
 
+  mqttClient.beginMessage(TEMP_TOPIC);
+  mqttClient.print(tempC);
+  mqttClient.endMessage();
+
   vTaskDelay(pdMS_TO_TICKS(5000));
+
 }
