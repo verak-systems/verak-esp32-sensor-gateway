@@ -7,6 +7,7 @@
 #include <PubSubClient.h>
 #include <Secrets.h>
 #include <string>
+#include <ArduinoJson.h>
 
 
 #define TEMP_PIN 13
@@ -18,6 +19,7 @@ DallasTemperature sensors(&oneWire);
 int status = WL_IDLE_STATUS;
 WiFiClient wifiClient;
 PubSubClient mqttClient;
+StaticJsonDocument<200> data;
 
 void setup() {
   Serial.begin(115200);
@@ -43,7 +45,7 @@ void setup() {
   mqttClient.setClient(wifiClient);
   mqttClient.setServer(BROKER, MQTT_PORT);
 
-  while (!mqttClient.connect("esp32-temp", MQQT_USER, MQTT_PASS)){
+  while (!mqttClient.connect("esp32-Pub", MQQT_USER, MQTT_PASS)){
     Serial.print(".");
 
   }
@@ -62,7 +64,7 @@ void loop() {
 
     while(!mqttClient.connected()){
       Serial.print(".");
-      if (mqttClient.connect("esp32", MQQT_USER, MQTT_PASS)){break;}
+      if (mqttClient.connect("esp32-Pub", MQQT_USER, MQTT_PASS)){break;}
     }
 
     Serial.print("RECONNECTED");
@@ -75,22 +77,27 @@ void loop() {
   Serial.print("Thermistor ADC Value: ");
   Serial.println(analogValue);
 
-  char value[20];
-
   if (tempC == DEVICE_DISCONNECTED_C) {
     Serial.println("Error: sensor not found. Check wiring and pull-up resistor.");
-    strcpy(value,"Temp Unavailble");
-
+    data['status'] = "Unavaible";
   } else {
     Serial.print("Temperature: ");
     Serial.print(tempC, 1);
     Serial.println(" °C");
-    dtostrf(tempC, 4, 1, value);
-    strcat(value, " °C");
   }
 
-  mqttClient.publish(TEMP_TOPIC, value, true);
+  data["Device"] = "ESP32";
+  data["digitalTemp"] = tempC;
+  data["unit"] = "°C";
+  data["timestamp"] = "";
+  data["resistance"] = analogValue;
+
+  char payload[128];
+  serializeJson(data, payload);
+
+  mqttClient.publish(TEMP_TOPIC, payload, true);
 
   vTaskDelay(pdMS_TO_TICKS(5000));
+
 
 }
