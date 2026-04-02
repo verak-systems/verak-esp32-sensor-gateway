@@ -1,9 +1,8 @@
 #include <Arduino.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <FreeRTOSConfig.h>
 #include <Config.h>
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <Secrets.h>
 #include <string>
@@ -11,8 +10,8 @@
 #include <time.h>
 
 
-#define TEMP_PIN 13
-#define THERMISTOR_PIN 34
+#define TEMP_PIN D7
+#define THERMISTOR_PIN A0
 
 OneWire oneWire(TEMP_PIN);
 DallasTemperature sensors(&oneWire);
@@ -22,10 +21,11 @@ const int  estOffset_sec = -18000;
 
 int status = WL_IDLE_STATUS;
 WiFiClient wifiClient;
-PubSubClient mqttClient;
-StaticJsonDocument<200> data;
+PubSubClient mqttClient(wifiClient);
+JsonDocument data;
 
-String buildJson(StaticJsonDocument<200>& doc, char* device, char* key, float value, char* unit){
+
+String buildJson(JsonDocument& doc, char* device, char* key, float value, char* unit){
   doc["device"] = device;
   doc[key] = value;
   doc["unit"] = unit;
@@ -41,7 +41,6 @@ String buildJson(StaticJsonDocument<200>& doc, char* device, char* key, float va
   }
 
   doc["timestamp"] = timestamp;
-  Serial.print(&timeinfo);
 
   String payload;
   serializeJson(data, payload);
@@ -50,6 +49,7 @@ String buildJson(StaticJsonDocument<200>& doc, char* device, char* key, float va
 }
 
 void setup() {
+  delay(100);
   Serial.begin(115200);
   sensors.begin();
   sensors.setResolution(12);
@@ -64,7 +64,7 @@ void setup() {
     if (WiFi.status() != WL_CONNECTED){
       Serial.print("No Wifi Connection\n");
     }
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    delay(1000);
   }
 
   Serial.print("Wifi connected!\n");
@@ -73,7 +73,6 @@ void setup() {
 
   Serial.print("Connecting to MQTT Broker");
 
-  mqttClient.setClient(wifiClient);
   mqttClient.setServer(BROKER, MQTT_PORT);
 
   while (!mqttClient.connect("esp32-Pub", MQQT_USER, MQTT_PASS)){
@@ -82,15 +81,13 @@ void setup() {
   }
 
   Serial.print("Connected to MQTT Broker\n");
-}
 
-void loop() {
   if (!WiFi.isConnected() || !mqttClient.connected()){
     Serial.print("Wifi/MQTT connection Dropped\nRetrying connection");
     while(WiFi.status() != WL_CONNECTED){
       Serial.print(".");
       WiFi.reconnect();
-      vTaskDelay(pdMS_TO_TICKS(1000));
+      delay(1000);
     }
 
     while(!mqttClient.connected()){
@@ -125,8 +122,9 @@ void loop() {
   mqttClient.publish(TEMP_TOPIC, payload.c_str(), true);
   data.clear();
 
+  ESP.deepSleep(5e6);
+}
 
-  vTaskDelay(pdMS_TO_TICKS(5000));
-
-
+void loop() {
+  
 }
