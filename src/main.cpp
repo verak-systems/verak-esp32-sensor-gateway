@@ -32,8 +32,14 @@ JsonDocument data;
 
 String buildJson(JsonDocument& doc, const char* device, const char* key, const float value, const char* unit){
   doc["device"] = device;
+  // Calculate analog temp
   doc[key] = value;
   doc["unit"] = unit;
+
+  if(key == "analogTemp"){
+    doc["resistance"] = value;
+  }
+  
   // TODO: Add dst check somewhere, or would this be better done on the rpi?
   struct tm timeinfo;
   char timestamp[32];
@@ -51,6 +57,13 @@ String buildJson(JsonDocument& doc, const char* device, const char* key, const f
   serializeJson(doc, payload);
 
   return payload;
+}
+
+void check_connect(float tempC, JsonDocument &data){
+  if (tempC == DEVICE_DISCONNECTED_C) {
+    Serial.println("Error: sensor not found. Check wiring and pull-up resistor.");
+    data["status"] = "Unavailable";
+  }
 }
 
 float calcThermistorTemp(float res){
@@ -88,22 +101,22 @@ void setup() {
 
   sensors.requestTemperatures();
   float tempC = sensors.getTempCByIndex(0);
+  float resistance = analogRead(THERMISTOR_PIN);
 
-  int analogValue = analogRead(THERMISTOR_PIN);
   Serial.print("Thermistor ADC Value: ");
-  Serial.println(analogValue);
+  Serial.println(resistance);
 
-  if (tempC == DEVICE_DISCONNECTED_C) {
-    Serial.println("Error: sensor not found. Check wiring and pull-up resistor.");
-    data["status"] = "Unavailable";
-  }
+  check_connect(tempC, data);
 
   String payload = buildJson(data, "ESP32", "digitalTemp", tempC, "°C");
   mqttClient.publish(DIGITAL_TEMP_TOPIC, payload.c_str(), true);
   data.clear();
 
-  esp_deep_sleep(1000000LL * SLEEP_TIME);
+  payload = buildJson(data, "ESP32", "analogTemp", resistance, "F");
+  mqttClient.publish(ANALOG_TEMP_TOPIC, payload.c_str(), true);
+  data.clear();
 
+  esp_deep_sleep(1000000LL * SLEEP_TIME);
 }
 
 void loop() {
