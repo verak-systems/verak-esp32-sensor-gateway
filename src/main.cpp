@@ -93,7 +93,7 @@ void setup() {
 
   int mqttTries = 0;
 
-  while (!mqttClient.connect("esp32-Pub", MQTT_USER, MQTT_PASS) && mqttTries <= MAX_MQTT_TRIES){
+  while (!mqttClient.connect("esp32-pub", MQTT_USER, MQTT_PASS) && mqttTries <= MAX_MQTT_TRIES){
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 
@@ -112,9 +112,13 @@ void setup() {
   mqttClient.publish(DIGITAL_TEMP_TOPIC, payload.c_str(), true);
   data.clear();
 
-  payload = buildJson(data, "ESP32", "analogTemp", resistance, "F");
+  vTaskDelay(pdMS_TO_TICKS(100));
+
+  payload = buildJson(data, "ESP32", "analogTemp", resistance, "°C");
   mqttClient.publish(ANALOG_TEMP_TOPIC, payload.c_str(), true);
   data.clear();
+
+  vTaskDelay(pdMS_TO_TICKS(100));
 
   esp_deep_sleep(1000000LL * SLEEP_TIME);
 }
